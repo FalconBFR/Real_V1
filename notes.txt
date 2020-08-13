@@ -1,0 +1,3 @@
+to open a server:
+python -m http.server 
+at the dir
