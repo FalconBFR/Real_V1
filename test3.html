@@ -1,0 +1,127 @@
+<html>
+	<head>
+		<title>My first three.js app</title>
+		<style>
+			body { margin: 0; }
+			canvas { display: block; }
+		</style>
+	</head>
+	<p id="wholebodydisplay">Whole Body from server</p>
+	<p id="rssidisplay">RSSI Value </p>
+	<p id="lastupdateddisplay">Time</p>
+	<body>
+		<script src="js/three.js"></script>
+		<script type="module">
+			//import * as THREE from './build/three.module.js';
+			import { OrbitControls } from "https://threejs.org/examples/jsm/controls/OrbitControls.js";
+			
+			
+			var current_response; // for get request to server
+			var scene = new THREE.Scene();
+			var camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+
+			camera.position.set(0, 10, 0);
+
+
+
+			var renderer = new THREE.WebGLRenderer();
+			renderer.setSize( window.innerWidth-10, window.innerHeight-10 );
+			document.body.appendChild( renderer.domElement );
+
+			var controls = new OrbitControls( camera, renderer.domElement );
+			//controls.enableZoom = false;
+			//controls.update() must be called after any manual changes to the camera's transform
+
+			var geometry = new THREE.BoxGeometry(10,10,1); //x,y,z
+
+			const loader = new THREE.CubeTextureLoader();
+
+			loader.setPath('./');
+
+			const textureCube = loader.load( [ //not verified properly
+				'ParkAvenueFloorPlan10241024.png','ParkAvenueFloorPlan10241024.png',
+				'ParkAvenueFloorPlan10241024.png','ParkAvenueFloorPlan10241024.png',
+				'ParkAvenueFloorPlan10241024.png','ParkAvenueFloorPlan10241024.png',
+			    //'ParkAvenueFloorPlan10241024.png', 'arid_up.jpg', //left, right
+				//'arid_up.jpg', 'arid_up.jpg', //up , down
+				//'arid_up.jpg', 'arid_up.jpg', // front , back
+				//'white.png', 'white.png',
+			])
+		
+			/*var material = new THREE.MeshBasicMaterial( { 
+				envMap: textureCube,
+				//map:texture,
+				sizeAttenuation:false,
+			} );*/
+
+			//corrected by mike from slack:
+			var material = new THREE.MeshBasicMaterial( { map: new THREE.TextureLoader().load('./ParkAvenueFloorPlan10241024.png')} );
+			var cube = new THREE.Mesh( geometry, material );
+			scene.add( cube );
+
+			const axesHelper = new THREE.AxesHelper( 5 );
+			scene.add( axesHelper );
+
+			//camera.position.z = 5;
+			controls.update();
+
+			var animate = function () {
+				
+				get_latest_beacon_info_from_server(); 
+
+				//Note: since the function is async, current response may still be outdated at this point. The update to the page may be delayed by one refresh cycle
+				/*try{
+					console.log("resulting")
+					console.log(current_response["results"]);
+					if (current_response["results"][0]["minor"]==21){
+							document.getElementById("p1").innerHTML = Http.responseText;
+					}
+				}
+				catch (err) {
+					console.log("current response is either empty, unacessable, or something bad happened L39");
+				}*/
+
+				requestAnimationFrame( animate );
+
+				//cube.rotation.x += 0.01;
+				//cube.rotation.y += 0.01;
+
+				controls.update();
+
+				renderer.render( scene, camera );
+
+				
+			};
+
+			animate();
+			
+			function get_latest_beacon_info_from_server(){
+				//get request to server
+				const Http = new XMLHttpRequest();
+				const url='http://188.166.229.252/latest_beacon_occurance'; //note: causes acess control allow origin bug when run locally on mac - using the moesif cors extention
+				//refer to: https://medium.com/@dtkatz/3-ways-to-fix-the-cors-error-and-how-access-control-allow-origin-works-d97d55946d9
+				Http.open("GET", url);
+				Http.send();
+
+				Http.onreadystatechange = (e) => {
+					console.log(Http.responseText);
+					let str = (Http.responseText);
+					console.log('str length = ', str.length);
+					console.log(str[166],str[167])
+					if (str[166]==2 && str[167]==1 ){
+						document.getElementById("wholebodydisplay").innerHTML = Http.responseText;
+						document.getElementById("rssidisplay").innerHTML = str.substring(169,179);
+						document.getElementById("lastupdateddisplay").innerHTML = str.substring(180,217);
+					}
+					//current_response = Http.responseText;
+					//var json = JSON.parse(Http.responseText)
+					//var data = json.Data
+					//console.log(data)
+				}
+			}
+
+		</script>
+	</body>
+</html>
+
+<!-- python -m http. server 8000 -->
